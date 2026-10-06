@@ -27,6 +27,19 @@ app.use((req, res, next) => {
   res.set('Content-Security-Policy', `frame-ancestors 'self' ${process.env.ALLOWED_FRAME_ANCESTORS || ''}`.trim());
   next();
 });
+// CORS: Nur freigegebene Apps dürfen die öffentliche API von einer anderen Adresse aus nutzen.
+// Die Website selbst braucht das nicht (gleicher Server).
+app.use('/api', (req, res, next) => {
+  const origin = req.get('origin');
+  if (origin && config.appOrigins.includes(origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+    res.set('Access-Control-Allow-Headers', 'content-type, authorization');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+  }
+  next();
+});
 app.use(express.static(fileURLToPath(new URL('../public/', import.meta.url))));
 
 // ---------- Öffentliche API ----------

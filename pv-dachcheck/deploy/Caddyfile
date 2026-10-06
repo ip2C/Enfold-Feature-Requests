@@ -1,0 +1,6 @@
+# Caddy: Webserver davor, holt automatisch ein kostenloses HTTPS-Zertifikat (Let's Encrypt).
+# Kopieren nach /etc/caddy/Caddyfile und die Subdomain anpassen.
+solar.example.de {
+	encode gzip
+	reverse_proxy localhost:3000
+}

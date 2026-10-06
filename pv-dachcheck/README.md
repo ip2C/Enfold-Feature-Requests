@@ -36,6 +36,8 @@ npm run dev               # http://localhost:3000
 npm test                  # Tests für Rechenkern, Scoring und API
 ```
 
+**Online stellen unter einer Subdomain:** Schritt-für-Schritt in [DEPLOY.md](DEPLOY.md).
+
 **Demo-Modus:** Ohne Schlüssel läuft die App trotzdem – Adresse als Textfeld, Dachfläche wird
 manuell eingegeben, der Foto-Schritt entfällt, E-Mails werden nur in der Konsole ausgegeben.
 
@@ -140,4 +142,5 @@ pv-dachcheck/
 * Solar API `dataLayers` (Sonneneinstrahlung als Heatmap auf dem Dach) anzeigen
 * PDF-Angebot automatisch an die E-Mail anhängen
 * Lead-Speicher durch CRM (HubSpot, Pipedrive …) oder Datenbank ersetzen
+* Native App für iOS/Android mit Capacitor (siehe DEPLOY.md)
 * Terminbuchung (z. B. Calendly) direkt auf der Ergebnisseite

@@ -8,6 +8,7 @@ import path from 'node:path';
 const dataDir = await mkdtemp(path.join(tmpdir(), 'pv-test-'));
 process.env.DATA_DIR = dataDir;
 process.env.ADMIN_TOKEN = 'test-token';
+process.env.APP_ORIGINS = 'capacitor://localhost';
 delete process.env.ANTHROPIC_API_KEY;
 delete process.env.SMTP_HOST;
 
@@ -82,4 +83,13 @@ test('POST /api/leads speichert Lead, rechnet serverseitig und bewertet ihn', as
 test('Honeypot: Bot-Anfragen werden still verworfen', async () => {
   const res = await post('/api/leads', { ...validLead, website: 'http://spam' });
   assert.equal(res.status, 200);
+});
+
+test('CORS: freigegebene App darf die API nutzen, fremde Seiten nicht', async () => {
+  const allowed = await fetch(`${base}/api/config`, { headers: { origin: 'capacitor://localhost' } });
+  assert.equal(allowed.headers.get('access-control-allow-origin'), 'capacitor://localhost');
+  const preflight = await fetch(`${base}/api/leads`, { method: 'OPTIONS', headers: { origin: 'capacitor://localhost' } });
+  assert.equal(preflight.status, 204);
+  const foreign = await fetch(`${base}/api/config`, { headers: { origin: 'https://evil.example' } });
+  assert.equal(foreign.headers.get('access-control-allow-origin'), null);
 });

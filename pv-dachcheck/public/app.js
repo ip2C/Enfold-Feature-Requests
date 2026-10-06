@@ -3,6 +3,12 @@
 // Jeder Schritt hat optional enter() (beim Anzeigen), canNext() (darf weiter?) und next() (Aktion).
 
 const $ = (sel) => document.querySelector(sel);
+
+// Adresse des Servers. Leer = derselbe Server, von dem die Seite kommt (Website).
+// In einer späteren App (Capacitor) wird hier die volle Adresse eingetragen,
+// z. B. <meta name="pv-api-base" content="https://solar.example.de">.
+const API_BASE = document.querySelector('meta[name="pv-api-base"]')?.content.replace(/\/$/, '') ?? '';
+const api = (path, options) => fetch(API_BASE + path, options);
 const fmt = (v, digits = 0) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: digits }).format(v);
 const eur = (v) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -182,7 +188,7 @@ $('#use-location').addEventListener('click', () => {
 async function loadSolarData(lat, lng) {
   if (!state.config.solarEnabled) return;
   try {
-    const res = await fetch(`/api/solar?lat=${lat}&lng=${lng}`);
+    const res = await api(`/api/solar?lat=${lat}&lng=${lng}`);
     const data = await res.json();
     if (data.found && state.address?.lat === lat) {
       state.solar = data;
@@ -322,7 +328,7 @@ async function analyzePhoto(dataUrl) {
   $('#next').disabled = true;
 
   try {
-    const res = await fetch('/api/analyze-photo', {
+    const res = await api('/api/analyze-photo', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ imageBase64: dataUrl.split(',')[1], mediaType: 'image/jpeg' }),
@@ -510,7 +516,7 @@ function roofInput() {
 
 async function calculate() {
   stopCompass();
-  const res = await fetch('/api/calculate', {
+  const res = await api('/api/calculate', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(roofInput()),
@@ -547,7 +553,7 @@ async function submitLead() {
 
   if (!form.reportValidity()) return false;
 
-  const res = await fetch('/api/leads', {
+  const res = await api('/api/leads', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -630,7 +636,7 @@ function track(event, data = {}) {
 // ---------------------------------------------------------------------------
 
 async function init() {
-  state.config = await (await fetch('/api/config')).json();
+  state.config = await (await api('/api/config')).json();
   if (state.config.company?.name) $('#brand').textContent = `${state.config.company.name} · Solar-Check`;
   if (state.config.company?.privacyUrl) $('#privacy-link').href = state.config.company.privacyUrl;
   if (state.config.mapsKey) {
@@ -644,6 +650,8 @@ async function init() {
   $('#skip').addEventListener('click', () => goTo(current + 1));
   $('#back').addEventListener('click', () => history.back());
   history.replaceState({ step: 0 }, '', '#start');
+  // Offline-Fähigkeit + „Zum Startbildschirm hinzufügen“ (PWA). In einer echten App nicht nötig.
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   goTo(0, { push: false });
 }
 

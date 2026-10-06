@@ -1,0 +1,22 @@
+# systemd-Dienst: startet die App automatisch (auch nach Neustart des Servers)
+# Kopieren nach /etc/systemd/system/pv-dachcheck.service
+[Unit]
+Description=PV-Dachcheck
+After=network.target
+
+[Service]
+Type=simple
+User=pvapp
+WorkingDirectory=/opt/pv-dachcheck/pv-dachcheck
+ExecStart=/usr/bin/node --env-file=.env server/index.js
+Restart=always
+RestartSec=5
+# Härtung: die App darf nur in ihren data-Ordner schreiben
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/pv-dachcheck/pv-dachcheck/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

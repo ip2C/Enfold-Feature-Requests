@@ -44,6 +44,10 @@ export const config = {
     token: process.env.ADMIN_TOKEN || '',
   },
 
+  // Herkünfte, die die API von außerhalb aufrufen dürfen (CORS) – z. B. eine spätere
+  // iOS-/Android-App (Capacitor): "capacitor://localhost https://localhost"
+  appOrigins: (process.env.APP_ORIGINS || '').split(/[\s,]+/).filter(Boolean),
+
   // Optional: jeden neuen Lead zusätzlich an ein CRM / n8n / Zapier schicken.
   leadWebhookUrl: process.env.LEAD_WEBHOOK_URL || '',
 
