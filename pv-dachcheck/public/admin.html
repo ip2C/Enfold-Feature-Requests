@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>PV-Leads – Vertrieb</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <style>
+    :root { --primary:#0d4d8c; --accent:#f6b400; --border:#d9e1ea; --muted:#5d6b7a; font-family: system-ui, sans-serif; color:#1b2430; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: #f4f7fb; }
+    header { background: var(--primary); color: #fff; padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    header h1 { font-size: 1.1rem; margin: 0 auto 0 0; }
+    button, select, input, textarea { font: inherit; }
+    button { border: 0; border-radius: 8px; padding: 8px 12px; cursor: pointer; background: #fff; }
+    main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+    .login { max-width: 360px; margin: 15vh auto; background: #fff; padding: 24px; border-radius: 12px; }
+    .login input { width: 100%; padding: 10px; margin: 8px 0 12px; border: 1px solid var(--border); border-radius: 8px; }
+    .pipeline { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pipeline button { border: 2px solid var(--border); }
+    .pipeline button[aria-pressed=true] { border-color: var(--primary); font-weight: 700; }
+    .lead { background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; display: grid; grid-template-columns: 56px 1fr 220px; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    .lead:target { outline: 3px solid var(--accent); }
+    .grade { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 1.3rem; color: #fff; }
+    .grade-A { background: #1f8a4c; } .grade-B { background: #e08e00; } .grade-C { background: #8a96a3; }
+    .meta { color: var(--muted); font-size: .85rem; }
+    .reasons { margin: 6px 0 0; padding-left: 18px; font-size: .85rem; }
+    .side select, .side textarea { width: 100%; margin-bottom: 6px; padding: 6px; border: 1px solid var(--border); border-radius: 6px; }
+    .side textarea { min-height: 70px; }
+    a { color: var(--primary); }
+    @media (max-width: 700px) { .lead { grid-template-columns: 48px 1fr; } .side { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+<form class="login" id="login">
+  <h2>Vertriebs-Login</h2>
+  <label>Admin-Token<input type="password" id="token" autocomplete="current-password" required></label>
+  <button type="submit" style="background:var(--primary);color:#fff;width:100%">Anmelden</button>
+  <p id="login-error" style="color:#c0392b" hidden>Token ungültig.</p>
+</form>
+
+<div id="app" hidden>
+  <header>
+    <h1>PV-Leads</h1>
+    <select id="sort" aria-label="Sortierung">
+      <option value="date">Neueste zuerst</option>
+      <option value="score">Beste Leads zuerst</option>
+    </select>
+    <button id="csv">CSV-Export</button>
+    <button id="logout">Abmelden</button>
+  </header>
+  <main>
+    <div class="pipeline" id="pipeline"></div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<script type="module">
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+  const STATUS_LABELS = { neu: 'Neu', kontaktiert: 'Kontaktiert', termin: 'Termin vereinbart', angebot: 'Angebot', gewonnen: 'Gewonnen', verloren: 'Verloren' };
+  let token = sessionStorage.getItem('pvAdminToken') || '';
+  let leads = [];
+  let statuses = [];
+  let filter = 'offen';
+
+  async function api(path, options = {}) {
+    const res = await fetch(path, { ...options, headers: { ...options.headers, authorization: `Bearer ${token}` } });
+    if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+    return res;
+  }
+
+  async function load() {
+    const res = await api('/api/admin/leads');
+    ({ leads, statuses } = await res.json());
+    $('#login').hidden = true;
+    $('#app').hidden = false;
+    render();
+    if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+  }
+
+  function render() {
+    const counts = Object.fromEntries(statuses.map((s) => [s, leads.filter((l) => l.status === s).length]));
+    const open = leads.filter((l) => !['gewonnen', 'verloren'].includes(l.status)).length;
+    $('#pipeline').innerHTML = [['offen', `Offen (${open})`], ['alle', `Alle (${leads.length})`], ...statuses.map((s) => [s, `${STATUS_LABELS[s]} (${counts[s]})`])]
+      .map(([key, label]) => `<button data-filter="${key}" aria-pressed="${key === filter}">${esc(label)}</button>`).join('');
+
+    let shown = leads.filter((l) => filter === 'alle' || (filter === 'offen' ? !['gewonnen', 'verloren'].includes(l.status) : l.status === filter));
+    if ($('#sort').value === 'score') shown = [...shown].sort((a, b) => (b.score?.score ?? 0) - (a.score?.score ?? 0));
+
+    $('#list').innerHTML = shown.map((l) => {
+      const c = l.contact, r = l.result, sc = l.score;
+      const maps = l.address?.lat ? `https://www.google.com/maps/@${l.address.lat},${l.address.lng},60m/data=!3m1!1e3` : null;
+      return `
+      <article class="lead" id="${esc(l.id)}">
+        <div class="grade grade-${esc(sc.grade)}" title="Score ${sc.score}/100">${esc(sc.grade)}</div>
+        <div>
+          <strong>${esc(c.name)}</strong> · <a href="tel:${esc(c.phone)}">${esc(c.phone)}</a> · <a href="mailto:${esc(c.email)}">${esc(c.email)}</a>
+          <div class="meta">${new Date(l.createdAt).toLocaleString('de-DE')} · ${esc(l.address?.formatted || '–')} ${maps ? `· <a href="${maps}" target="_blank" rel="noopener">Satellit</a>` : ''}</div>
+          <div><b>${r.kwp.toLocaleString('de-DE')} kWp</b> · ${Math.round(r.yieldKwh).toLocaleString('de-DE')} kWh/a · ${esc(r.roofTypeLabel)} · ${esc(r.rating.label)} · ca. ${r.investmentEur.toLocaleString('de-DE')} €</div>
+          <ul class="reasons">${sc.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+          ${l.aiAnalysis?.salesNotes ? `<div class="meta"><b>KI:</b> ${esc(l.aiAnalysis.salesNotes)}</div>` : ''}
+          ${l.source?.utm?.source ? `<div class="meta">Quelle: ${esc(Object.values(l.source.utm).join(' / '))}</div>` : ''}
+        </div>
+        <div class="side">
+          <select data-status="${esc(l.id)}">${statuses.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${STATUS_LABELS[s]}</option>`).join('')}</select>
+          <textarea data-notes="${esc(l.id)}" placeholder="Notizen (Gesprächsverlauf, Termin …)">${esc(l.notes)}</textarea>
+        </div>
+      </article>`;
+    }).join('') || '<p>Keine Leads in dieser Ansicht.</p>';
+  }
+
+  async function update(id, patch) {
+    const res = await api(`/api/admin/leads/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) });
+    const updated = await res.json();
+    leads = leads.map((l) => (l.id === id ? updated : l));
+  }
+
+  function logout() {
+    sessionStorage.removeItem('pvAdminToken');
+    token = '';
+    $('#app').hidden = true;
+    $('#login').hidden = false;
+  }
+
+  $('#login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    token = $('#token').value;
+    try {
+      await load();
+      sessionStorage.setItem('pvAdminToken', token);
+    } catch { $('#login-error').hidden = false; }
+  });
+  $('#logout').addEventListener('click', logout);
+  $('#sort').addEventListener('change', render);
+  $('#pipeline').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-filter]');
+    if (b) { filter = b.dataset.filter; render(); }
+  });
+  $('#list').addEventListener('change', async (e) => {
+    if (e.target.dataset.status) { await update(e.target.dataset.status, { status: e.target.value }); render(); }
+    if (e.target.dataset.notes) await update(e.target.dataset.notes, { notes: e.target.value });
+  });
+  $('#csv').addEventListener('click', async () => {
+    const blob = await (await api('/api/admin/leads.csv')).blob();
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'pv-leads.csv' });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  if (token) load().catch(() => {});
+</script>
+</body>
+</html>

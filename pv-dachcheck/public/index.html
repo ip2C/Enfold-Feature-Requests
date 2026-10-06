@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Solar-Dachcheck – Was kann Ihr Dach?</title>
+  <meta name="description" content="Kostenloser Solar-Dachcheck: In 2 Minuten sehen, wie viel Photovoltaik auf Ihr Dach passt, was sie erzeugt und was Sie sparen.">
+  <meta name="theme-color" content="#0d4d8c">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="icon-btn" id="back" type="button" aria-label="Zurück" hidden>&#8592;</button>
+    <div class="brand" id="brand">Solar-Dachcheck</div>
+    <div class="progress" aria-hidden="true"><div class="progress-bar" id="progress"></div></div>
+  </header>
+
+  <main id="steps">
+    <!-- 0: Start -->
+    <section class="step" data-step="start">
+      <div class="hero">
+        <div class="hero-sun" aria-hidden="true"></div>
+        <h1>Was kann Ihr Dach?</h1>
+        <p class="lead">In 2 Minuten zur persönlichen Solar-Einschätzung: Anlagengröße, Stromertrag und Ersparnis – kostenlos und unverbindlich.</p>
+        <ul class="checklist">
+          <li>Adresse eingeben &amp; Dach auf dem Satellitenbild markieren</li>
+          <li>Foto vom Haus machen – unsere KI schätzt die Dachneigung</li>
+          <li>Ergebnis sofort sehen und per E-Mail erhalten</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 1: Adresse -->
+    <section class="step" data-step="address">
+      <h2>Wo steht Ihr Gebäude?</h2>
+      <p class="hint">Geben Sie Ihre Adresse ein – wir zeigen Ihnen Ihr Dach von oben.</p>
+      <div id="place-autocomplete" class="field"></div>
+      <label class="field" id="address-fallback" hidden>
+        <span>Adresse</span>
+        <input type="text" id="address-input" autocomplete="street-address" placeholder="Straße Hausnummer, PLZ Ort">
+      </label>
+      <button type="button" class="btn btn-ghost" id="use-location">&#9678; Aktuellen Standort verwenden</button>
+      <p class="selected-address" id="selected-address" hidden></p>
+    </section>
+
+    <!-- 2: Dach auf der Karte -->
+    <section class="step" data-step="map">
+      <h2>Markieren Sie Ihr Dach</h2>
+      <div class="notice notice-success" id="solar-found" hidden>
+        <strong>Google-Solardaten gefunden:</strong> <span id="solar-summary"></span>
+        <label class="check"><input type="checkbox" id="use-solar" checked> Diese Dachdaten verwenden</label>
+      </div>
+      <p class="hint" id="map-hint">Tippen Sie nacheinander auf die <strong>Ecken Ihres Daches</strong>. Die Punkte lassen sich danach verschieben.</p>
+      <div class="map" id="map"></div>
+      <div class="map-tools" id="map-tools">
+        <button type="button" class="btn btn-small" id="map-undo">Letzten Punkt entfernen</button>
+        <button type="button" class="btn btn-small" id="map-reset">Neu beginnen</button>
+        <span class="area" id="map-area">0 m²</span>
+      </div>
+      <label class="field" id="manual-area" hidden>
+        <span>Grundfläche des Daches (Draufsicht) in m²</span>
+        <input type="number" id="footprint-input" inputmode="decimal" min="10" max="5000" placeholder="z. B. 110">
+        <small>Tipp: Grundfläche des Hauses inkl. Dachüberstand.</small>
+      </label>
+    </section>
+
+    <!-- 3: Foto -->
+    <section class="step" data-step="photo">
+      <h2>Ein Foto von Ihrem Haus</h2>
+      <p class="hint">Fotografieren Sie Ihr Haus so, dass das <strong>Dach und ein Giebel</strong> gut zu sehen sind – am besten etwas seitlich von der Straße aus. Unsere KI schätzt daraus Dachform und Neigung.</p>
+      <label class="photo-drop" id="photo-drop">
+        <input type="file" id="photo-input" accept="image/*" capture="environment">
+        <img id="photo-preview" alt="" hidden>
+        <span id="photo-cta"><span class="camera" aria-hidden="true">&#128247;</span><br>Kamera öffnen oder Foto wählen</span>
+      </label>
+      <div class="ai-status" id="ai-status" hidden></div>
+      <div class="card" id="ai-result" hidden></div>
+      <p class="small">Das Foto wird nur für die Analyse verwendet und nicht gespeichert.</p>
+    </section>
+
+    <!-- 4: Dachdetails -->
+    <section class="step" data-step="roof">
+      <h2>Ihr Dach im Detail</h2>
+      <div id="roof-from-solar" hidden>
+        <p class="hint">Diese Dachflächen hat Google für Ihr Gebäude erkannt:</p>
+        <ul class="segments" id="segment-list"></ul>
+      </div>
+      <div id="roof-manual">
+        <fieldset class="field">
+          <legend>Dachform</legend>
+          <div class="choice-grid" id="roof-types"></div>
+        </fieldset>
+        <label class="field" id="tilt-field">
+          <span>Dachneigung: <strong id="tilt-value">35°</strong> <em class="badge" id="tilt-ai" hidden>KI-Schätzung</em></span>
+          <input type="range" id="tilt-input" min="5" max="60" step="1" value="35">
+        </label>
+        <fieldset class="field">
+          <legend>In welche Richtung zeigt die <strong>beste Dachseite</strong>?</legend>
+          <div class="compass" id="compass"></div>
+          <button type="button" class="btn btn-ghost btn-small" id="use-compass">&#129517; Mit Handy-Kompass bestimmen</button>
+          <small id="compass-help" hidden>Stellen Sie sich mit dem Rücken an die Hauswand unter dieser Dachseite und halten Sie das Handy flach vor sich.</small>
+        </fieldset>
+      </div>
+    </section>
+
+    <!-- 5: Verbrauch -->
+    <section class="step" data-step="usage">
+      <h2>Ihr Stromverbrauch</h2>
+      <fieldset class="field">
+        <legend>Personen im Haushalt</legend>
+        <div class="choice-row" id="persons"></div>
+      </fieldset>
+      <label class="field">
+        <span>Oder Jahresverbrauch laut Stromrechnung (optional)</span>
+        <input type="number" id="consumption-input" inputmode="numeric" min="0" max="100000" placeholder="kWh pro Jahr">
+      </label>
+      <fieldset class="field">
+        <legend>Was interessiert Sie außerdem?</legend>
+        <label class="check"><input type="checkbox" id="opt-storage"> Stromspeicher</label>
+        <label class="check"><input type="checkbox" id="opt-wallbox"> Wallbox fürs E-Auto</label>
+        <label class="check"><input type="checkbox" id="opt-heatpump"> Wärmepumpe</label>
+      </fieldset>
+    </section>
+
+    <!-- 6: Teaser + Kontakt -->
+    <section class="step" data-step="contact">
+      <div class="result-teaser" id="teaser"></div>
+      <h2>Ihre vollständige Auswertung</h2>
+      <p class="hint">Wohin dürfen wir Ihre Auswertung mit Wirtschaftlichkeitsrechnung schicken?</p>
+      <form id="lead-form" novalidate>
+        <label class="field"><span>Name *</span><input name="name" required autocomplete="name"></label>
+        <label class="field"><span>E-Mail *</span><input name="email" type="email" required autocomplete="email" inputmode="email"></label>
+        <label class="field"><span>Telefon *</span><input name="phone" type="tel" required autocomplete="tel" inputmode="tel"></label>
+        <label class="field"><span>Sie sind …</span>
+          <select name="ownership">
+            <option value="eigentuemer">Eigentümer/in</option>
+            <option value="kauf-geplant">Kauf geplant</option>
+            <option value="mieter">Mieter/in</option>
+          </select>
+        </label>
+        <label class="field"><span>Wann möchten Sie starten?</span>
+          <select name="timeline">
+            <option value="sofort">So bald wie möglich</option>
+            <option value="3-monate">In den nächsten 3 Monaten</option>
+            <option value="12-monate">Innerhalb eines Jahres</option>
+            <option value="informieren">Ich informiere mich nur</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" name="callbackWanted"> Bitte rufen Sie mich zurück</label>
+        <label class="hp" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="check consent"><input type="checkbox" name="consent" required>
+          <span id="consent-text">Ich bin einverstanden, dass meine Angaben zur Bearbeitung meiner Anfrage gespeichert werden und man mich per E-Mail und Telefon kontaktiert. Die Einwilligung kann ich jederzeit widerrufen. Details in der <a id="privacy-link" href="/datenschutz" target="_blank" rel="noopener">Datenschutzerklärung</a>.</span>
+        </label>
+        <p class="error" id="form-error" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <!-- 7: Ergebnis -->
+    <section class="step" data-step="result">
+      <div class="thanks">
+        <h2>Vielen Dank!</h2>
+        <p>Ihre Auswertung ist per E-Mail unterwegs. Wir melden uns in Kürze für die Detailplanung.</p>
+      </div>
+      <div id="full-result"></div>
+      <p class="small">Unverbindliche Schätzung auf Basis Ihrer Angaben. Die genaue Planung erfolgt nach einer Vor-Ort-Prüfung.</p>
+    </section>
+  </main>
+
+  <footer class="actionbar">
+    <button type="button" class="btn btn-primary" id="next">Jetzt Dach prüfen</button>
+    <button type="button" class="btn btn-link" id="skip" hidden>Überspringen</button>
+  </footer>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

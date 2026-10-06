@@ -1,0 +1,22 @@
+{
+  "name": "pv-dachcheck",
+  "version": "0.1.0",
+  "description": "Mobile Web-App: Interessenten prüfen ihr Dach für eine Photovoltaik-Anlage (Google Maps, Google Solar API, KI-Fotoanalyse) und hinterlassen ihre Kontaktdaten als Lead.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "dev": "node --watch --env-file-if-exists=.env server/index.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22.9"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "express": "^5.2.1",
+    "nodemailer": "^10.0.15"
+  }
+}
